@@ -18,7 +18,7 @@ Patm = Tm = URm = es = ea = DPV = UA = US = Qesp = Rmix = Tpo = Dens = Lamb = Ga
 
 #Coleta de dados
 #folder_path = 'Data/'
-folder_path = 'C:/Users/fernando.albani/Documents/Pessoal/Fernando/Mestrado Fernando/Projeto/Weather/weather/weather/Data/'
+folder_path = 'C:/Users/fernando.albani/Documents/Pessoal/Fernando/Mestrado Fernando/Projeto/Weather/weather/Data/'
 df = pd.read_csv(folder_path + "DadosEvapo.txt",
                  delimiter='\s+',
                  index_col=False)
