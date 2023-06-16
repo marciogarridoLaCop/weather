@@ -1,3 +1,4 @@
+import sqlite3
 from django.http import JsonResponse
 from rest_framework.response import Response
 from rest_framework.decorators import api_view
@@ -8,7 +9,69 @@ from rest_framework.decorators import api_view
 import math
 import pandas as pd
 import json
-import numpy as np
+
+from datetime import datetime
+
+@api_view(['GET'])
+def getEvapotranpiracaoDB(request):
+    query = request.GET.get('query')
+    dataini = request.GET.get('dtini')
+    datafim = request.GET.get('dtfim')
+    dadosevapotranspiracao = {}
+    dadosdb = initdatabase()
+    
+    print(dataini)
+    print(datafim)
+    
+    select = "SELECT * FROM DADOSEVAPO"
+    
+    if query == None:
+        query = 'todos'
+    
+    if dataini != None and datafim != None: #http://127.0.0.1:8000/dadosevapotranspiracaodb?query=evapo&dtini=6/16/2018&dtfim=6/18/2018
+        select = "SELECT * FROM DADOSEVAPO WHERE DATA >= '" + dataini + "' AND DATA <= '" +  datafim +"'"
+        
+    dadosdb.execute(select)
+    
+    resultados = dadosdb.fetchall()
+    #Retornando os dados do CSV
+    dadosCSVCol = []
+    for linha in resultados:
+        dados = []
+        dados.append(datetime.strptime(linha[0], '%m/%d/%Y'))
+        dados.append(linha[1])
+        dados.append(linha[2])
+        dados.append(linha[3])
+        dados.append(linha[4])
+        dados.append(linha[5])
+        dados.append(linha[6])
+        dados.append(linha[7])
+        dados.append(linha[8])
+        dadosCSVCol.append(dados)
+    
+    lista_objetos = []    
+    for dado in dadosCSVCol:
+        termoJson = retornaJsondb('termodinamica', dado, None, None)
+        radiacaoJson = retornaJsondb('radiacao', dado, termoJson, None)
+        evapoJson = retornaJsondb('evapo', dado, termoJson, radiacaoJson)
+        if query == 'evapo': #http://127.0.0.1:8000/dadosevapotranspiracaodb?query=evapo
+            lista_objetos.append(termoJson)
+        elif query == 'radiacao': #http://127.0.0.1:8000/dadosevapotranspiracaodb?query=radiacao
+            lista_objetos.append(radiacaoJson)
+        elif query == 'termodinamica': #http://127.0.0.1:8000/dadosevapotranspiracaodb?query=termodinamica
+            lista_objetos.append(evapoJson)
+        elif query == 'todos':
+            dadosjson = {}
+            lista_objetos.append(termoJson)
+            lista_objetos.append(radiacaoJson)
+            lista_objetos.append(evapoJson)  
+            dadosjson["termodinamica"] = termoJson
+            dadosjson["radiacao"] = radiacaoJson
+            dadosjson["evapo"] = evapoJson
+            lista_objetos.append(dadosjson)
+          
+        
+    return (Response(lista_objetos))
 
 @api_view(['GET'])
 def getEvapotranpiracao(request):
@@ -76,7 +139,6 @@ def getEvapotranpiracaoCSV(request): #http://127.0.0.1:8000/evapotranspiracao
     URn = df.iloc[0:rows, 7:8]  # Umidade relativa do ar mínima absoluta [%]
     PCP = df.iloc[0:rows, 8:9]  # Precipitação total [mm]
     
-    
     dadosCSV = []
     for i in range(0, rows):
         dados = []
@@ -104,58 +166,6 @@ def getEvapotranpiracaoCSV(request): #http://127.0.0.1:8000/evapotranspiracao
         lista_objetos.append(dadosjson)
     
     return (Response(lista_objetos))
-
-def getEvapotranpiracaoCSVOLD2(request):
-    dadosevapotranspiracao = {}
-    dadosCSVCol = []
-    #Retornando os dados do CSV
-    df = ler_csv() 
-    rows = len(df) 
-    Data = df.iloc[0:rows, 0:1]  # Data em valor numérico
-    Doy = df.iloc[0:rows, 1:2]  # Dia de ordem do ano/dia Juliano
-    Tx = df.iloc[0:rows, 2:3]  # Temperatura do ar máxima absoluta [oC]
-    Tn = df.iloc[0:rows, 3:4]  # Temperatura do ar mínima absoluta [oC]
-    Rs = df.iloc[0:rows, 4:5]  # Radiação solar global [MJ / m² d]
-    U2 = df.iloc[0:rows, 5:6]  # Velocidade do vento - 2m [m/s]
-    URx = df.iloc[0:rows, 6:7]  # Umidade relativa do ar máxima absoluta [%]
-    URn = df.iloc[0:rows, 7:8]  # Umidade relativa do ar mínima absoluta [%]
-    PCP = df.iloc[0:rows, 8:9]  # Precipitação total [mm]
-    
-    dadosCSV = []
-    for i in range(0, rows):
-        classe_Dados = dados
-        classe_Dados.Data = Data.iloc[i].values
-        classe_Dados.Doy = Doy.iloc[i].values
-        classe_Dados.Tx = Tx.iloc[i].values
-        classe_Dados.Tn = Tn.iloc[i].values
-        classe_Dados.Rs = Rs.iloc[i].values
-        classe_Dados.U2 = U2.iloc[i].values
-        classe_Dados.URx = URx.iloc[i].values
-        classe_Dados.URn = URn.iloc[i].values
-        classe_Dados.PCP = PCP.iloc[i].values
-        dadosCSVCol.append(classe_Dados)
-    
-    lista_objetos = []    
-    for dado in dadosCSVCol:
-        dadosjson = {}
-        termoJson = retornaJson('termodinamica', dado, None, None)
-        dadosjson["termodinamica"] = termoJson
-        radiacaoJson = retornaJson('radiacao', dado, termoJson, None)
-        dadosjson["radiacao"] = radiacaoJson
-        evapoJson = retornaJson('evapo', dado, termoJson, radiacaoJson)
-        dadosjson["evapo"] = evapoJson
-        print(dadosjson)
-        lista_objetos.append(dadosjson)
-    
-    # Converter a lista de objetos em uma string JSON
-   
-    json_data = json.dumps(lista_objetos)
-    #jsonreturn = json.loads(json_data)
-
-    #print(jsonreturn)
-    # Retornar a string JSON como uma resposta HTTP
-    #return JsonResponse(json_data, safe=False)
-    return json_data
     
 def evapostranpiracao():
     dados = {}    
@@ -221,6 +231,37 @@ def retornaJsonOLD2(object, dados, termo, rad):
     json_object = convertojson(object,retorno)
     return json_object
 
+def convertojsondb(object, data):
+    objecttojson = {}
+    if object == 'evapo':
+        objecttojson['ETo_HS'] = data[0]
+        objecttojson['ETo_PM'] = data[1]
+        objecttojson['dia-mes'] = str(data[2].month) + '/' + str(data[2].day) + '/' + str(data[2].year)
+    elif object == 'radiacao':
+        objecttojson['Rn'] = data[0]
+        objecttojson['Rns'] = data[1]
+        objecttojson['Rnl'] = data[2]
+        objecttojson['Ra'] = data[3]
+        objecttojson['dia-mes'] = str(data[4].month) + '/' + str(data[4].day) + '/' + str(data[4].year)
+    elif object == 'termodinamica':
+        objecttojson['Patm'] = data[0]
+        objecttojson['Tm'] = data[1]
+        objecttojson['URm'] = data[2]
+        objecttojson['es'] = data[3]
+        objecttojson['ea'] = data[4]
+        objecttojson['DPV'] = data[5]
+        objecttojson['UA'] = data[6]
+        objecttojson['US'] = data[7]
+        objecttojson['Qesp'] = data[8]
+        objecttojson['Rmix'] = data[9]
+        objecttojson['Tpo'] = data[10]
+        objecttojson['Dens'] = data[11]
+        objecttojson['Lamb'] = data[12]
+        objecttojson['Gama'] = data[13]
+        objecttojson['Ses'] = data[14]
+        objecttojson['dia-mes'] = str(data[15].month) + '/' + str(data[15].day) + '/' + str(data[15].year)
+        
+    return objecttojson
 
 def convertojson(object, data):
     objecttojson = {}
@@ -250,9 +291,29 @@ def convertojson(object, data):
         objecttojson['Lamb'] = data[12]
         objecttojson['Gama'] = data[13]
         objecttojson['Ses'] = data[14]
-        objecttojson['dia-mes'] = data[15][0]
+        objecttojson['dia-mes'] = str(data[15].month) + '/' + str(data[15].day) + '/' + str(data[15].year)
         
     return objecttojson
+
+def retornaJsondb(object, dados, termo, rad):
+    json_object = {}
+    if object == 'termodinamica':
+        retorno = Termodinamica(dados[2], dados[3], dados[6], dados[7], 54)
+        retorno.append(dados[0])
+    elif object == 'radiacao':
+        #termoObj = json.loads(termo)
+        retorno = SaldoRadiacao(dados[1], -22.45, 54, dados[4], dados[2], dados[3], termo["ea"])
+        retorno.append(dados[0])
+    elif object == 'evapo':
+        #termoObj = json.loads(termo)
+        #radObj = json.loads(rad)   
+        retorno = Evapo(rad['Ra'], rad['Rn'], termo['Tm'], 
+        dados[2], dados[3], termo['es'], termo['ea'], 
+        termo['Lamb'],termo['Gama'], termo['Ses'], dados[5])
+        retorno.append(dados[0])
+   
+    json_object = convertojsondb(object,retorno)
+    return json_object
     
 def retornaJson(object, dados, termo, rad):
     json_object = {}
@@ -351,3 +412,43 @@ def Termodinamica(Tx,Tn,URx,URn,Z): # Temperatura
     Dens = 3.484*(Patm/Tm)                # Densidade do ar [g/m³]
 
     return [Patm,Tm,URm,es,ea,DPV,UA,US,Qesp,Rmix,Tpo,Dens,Lamb,Gama,Ses]
+
+def initdatabase():
+    conexao = sqlite3.connect(":memory:")
+    dadosCSVCol = []
+    #Retornando os dados do CSV
+    df = ler_csv() 
+    rows = len(df) 
+    Data = df.iloc[0:rows, 0:1]  # Data em valor numérico
+    Doy = df.iloc[0:rows, 1:2]  # Dia de ordem do ano/dia Juliano
+    Tx = df.iloc[0:rows, 2:3]  # Temperatura do ar máxima absoluta [oC]
+    Tn = df.iloc[0:rows, 3:4]  # Temperatura do ar mínima absoluta [oC]
+    Rs = df.iloc[0:rows, 4:5]  # Radiação solar global [MJ / m² d]
+    U2 = df.iloc[0:rows, 5:6]  # Velocidade do vento - 2m [m/s]
+    URx = df.iloc[0:rows, 6:7]  # Umidade relativa do ar máxima absoluta [%]
+    URn = df.iloc[0:rows, 7:8]  # Umidade relativa do ar mínima absoluta [%]
+    PCP = df.iloc[0:rows, 8:9]  # Precipitação total [mm]
+    
+    dadosCSV = []
+    cursor = conexao.cursor()
+    cursor.execute("CREATE TABLE DADOSEVAPO (data DATE, doy INTEGER, tx FLOAT, tn FLOAT, rs FLOAT, u2 FLOAT, urx FLOAT, urn FLOAT, pcp INTEGER)")
+    for i in range(0, rows):
+        dados = []
+        #strdata = datetime.strptime(Data.iloc[i][0], '%m/%d/%Y')
+        strdata = str(Data.iloc[i][0])
+        
+        print(strdata)
+        
+        #data = strdata.date()
+        dados.append(strdata)
+        dados.append(int(Doy.iloc[i].values))
+        dados.append(float(Tx.iloc[i].values))
+        dados.append(float(Tn.iloc[i].values))
+        dados.append(float(Rs.iloc[i].values))
+        dados.append(float(U2.iloc[i].values))
+        dados.append(float(URx.iloc[i].values))
+        dados.append(float(URn.iloc[i].values))
+        dados.append(int(PCP.iloc[i].values))
+        cursor.execute("INSERT INTO DADOSEVAPO VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", dados)
+    
+    return cursor
