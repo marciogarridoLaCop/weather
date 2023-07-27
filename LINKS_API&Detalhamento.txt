@@ -1,0 +1,31 @@
+DENTRO DA PASTA weather\myproject>
+Executar 
+python manage.py runserver
+
+*VALORES DE TERMODINAMICA POR DATA
+http://127.0.0.1:8000/evapotranspiracaoservice?query=termodinamica&data=21/7/2023
+
+*VALORES DE EVAPO POR DATA
+http://127.0.0.1:8000/evapotranspiracaoservice?query=evapo&data=21/7/2023
+
+*VALORES DE RADIAÇÃO POR DATA
+http://127.0.0.1:8000/evapotranspiracaoservice?query=radiacao&data=21/7/2023
+
+*VALORES DE EVAPOTRANSPIRAÇÃO POR DATA
+http://127.0.0.1:8000/evapotranspiracaoservice?query=evapotransp&data=21/7/2023
+
+*********************************************************************************************
+*** OBS: SE REMOVER A QUERY STRING DATA, A API RETORNARÁ TODAS AS DATAS
+*********************************************************************************************
+
+*VALORES ORIGINAIS DO BANCO EM JSON - POR DATA
+http://127.0.0.1:8000/evapotranspiracaoservice?data=21/7/2023
+
+*VALORES ORIGINAIS DO BANCO EM JSON - TOTAL
+http://127.0.0.1:8000/evapotranspiracaoservice
+
+*******************************************************************************************************
+OBS1: Alguns valores do banco estão como NaN, ou seja, tive que adicionar tratamento para retornar como String, pois o mesmo valor não pode ser adicionado em um Json sem este tratamento.
+
+OBS2: Alguns valores do banco estão como NaN, ou seja, tive que adicionar tratamento para retornar como String, pois o mesmo valor não pode ser adicionado em um Json sem este tratamento.
+*******************************************************************************************************
