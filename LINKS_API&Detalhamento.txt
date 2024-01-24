@@ -29,3 +29,9 @@ OBS1: Alguns valores do banco estão como NaN, ou seja, tive que adicionar tratam
 
 OBS2: Alguns valores do banco estão como NaN, ou seja, tive que adicionar tratamento para retornar como String, pois o mesmo valor não pode ser adicionado em um Json sem este tratamento.
 *******************************************************************************************************
+
+
+http://127.0.0.1:8000/evapotranspiracaoservice?query=evapo&estacao=1&inicio=12/12/2023&fim=31/12/2023
+http://127.0.0.1:8000/evapotranspiracaoservice?query=evapo&estacao=1&inicio=12/12/2023&fim=31/12/2023&pagina=4
+
+http://django-env-api.eba-xwzidp6r.us-east-1.elasticbeanstalk.com/sensorespecifico/1/?estacao=1&inicio=12/12/2023&fim=31/12/2023

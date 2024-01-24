@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view
 import math
 import pandas as pd
-from urllib.parse import urlencode
+import json
 
 from datetime import datetime
 
@@ -15,106 +15,93 @@ from datetime import datetime
 def getEvapotranspiracaoService(request):
     #http://127.0.0.1:8000/evapotranspiracaoservice
     query = request.GET.get('query')
-    inicio = request.GET.get('inicio')
-    fim = request.GET.get('fim')
-    estacao = request.GET.get('estacao')
-    pagina = request.GET.get('pagina')
+    data = request.GET.get('data')
+    sensor = request.GET.get('sensor')
     
+    #endpoint_url = "http://django-env.eba-pdtwmpte.us-east-1.elasticbeanstalk.com/datalogsensor/?sensor=01"
     endpoint_url = "http://django-env-api.eba-xwzidp6r.us-east-1.elasticbeanstalk.com/sensorespecifico/1/"
     
-    if estacao == None:
-        estacao = "1"
+    if data != None:
+        #endpoint_url = endpoint_url + "&data="+data
+        print("endpoint_url " + endpoint_url)
         
-    params = {'estacao': estacao}
-    
-    if inicio != None:
-        params['inicio'] = inicio
-        if fim != None:
-            params['fim'] = fim
-            
-    if pagina != None:
-        params['page'] = pagina
-    
-    endpoint_url = endpoint_url + "?" + urlencode(params)
+        
+    if query == None:
+        query = 'original'    
+        
+    #usuario = "ovomaster"
+    #senha = "ovomaster"
     usuario = "ovo-esp-user"
     senha = "M@ster10"
-    print("endpoint_url " + endpoint_url)
+    resposta = ""
     dados = retornadadosservico(endpoint_url, usuario, senha)
     if dados:
-        dadosarray = filtraJson(dados)
-        lista_objetos = []    
-        for dado in dadosarray:   
-            if query == 'evapo': #http://127.0.0.1:8000/evapotranspiracaoservice?query=evapo&estacao=
-                termoJson = retornaJson('termodinamica', dado, None, None)
-                termoJson["id"] = dado[9]
-                radiacaoJson = retornaJson('radiacao', dado, termoJson, None)
-                radiacaoJson["id"] = dado[9]
-                #print("termoJson")
-                #print(termoJson)
-                #print("radiacaoJson")
-                #print(radiacaoJson)
-                evapoJson = retornaJson('evapo', dado, termoJson, radiacaoJson)
-                evapoJson["id"] = dado[9]
-                evapoJson["next"] = dado[10]
-                converter_para_string(evapoJson)
-                lista_objetos.append(evapoJson)
-            elif query == 'radiacao': #http://127.0.0.1:8000/evapotranspiracaoservice?query=radiacao&estacao=1
-                termoJson = retornaJson('termodinamica', dado, None, None)
-                termoJson["id"] = dado[9]
-                radiacaoJson = retornaJson('radiacao', dado, termoJson, None)
-                radiacaoJson["id"] = dado[9]
-                converter_para_string(radiacaoJson)
-                lista_objetos.append(radiacaoJson)
-            elif query == 'termodinamica': #http://127.0.0.1:8000/evapotranspiracaoservice?query=termodinamica&estacao=1
-                termoJson = retornaJson('termodinamica', dado, None, None)
-                termoJson["id"] = dado[9]
-                converter_para_string(termoJson)
-                lista_objetos.append(termoJson)
-            elif query == 'evapotransp': #http://127.0.0.1:8000/evapotranspiracaoservice?query=todos&estacao=1
-                termoJson = retornaJson('termodinamica', dado, None, None)
-                termoJson["id"] = dado[9]
-                radiacaoJson = retornaJson('radiacao', dado, termoJson, None)
-                radiacaoJson["id"] = dado[9]
-                evapoJson = retornaJson('evapo', dado, termoJson, radiacaoJson)
-                evapoJson["id"] = dado[9]
-                converter_para_string(termoJson)
-                converter_para_string(radiacaoJson)
-                converter_para_string(evapoJson)                       
-                dadosjson = {}
-                dadosjson["termodinamica"] = termoJson
-                dadosjson["radiacao"] = radiacaoJson
-                dadosjson["evapo"] = evapoJson
-                lista_objetos.append(dadosjson)
-        return (Response(lista_objetos))
+        if query == 'original': #http://127.0.0.1:8000/evapotranspiracaoservice?sensor=01 + data se for o caso
+            lista_objetos = []    
+            for dado in dados:
+                insere = False
+                if data == None:
+                  insere = True
+                elif data == dado["data"]:
+                  insere = True 
+                
+                if insere:  
+                    lista_objetos.append(dado)
+                
+            return (Response(lista_objetos))
+        else:     
+            dadosarray = filtraJson(dados)
+            lista_objetos = []    
+            for dado in dadosarray:
+                insere = False
+                if data == None:
+                  insere = True
+                elif data == dado[0]:
+                  insere = True     
+                
+                if insere:    
+                    if query == 'evapo': #http://127.0.0.1:8000/evapotranspiracaoservice?query=evapo&sensor=01
+                        termoJson = retornaJson('termodinamica', dado, None, None)
+                        termoJson["id"] = dado[9]
+                        radiacaoJson = retornaJson('radiacao', dado, termoJson, None)
+                        radiacaoJson["id"] = dado[9]
+                        evapoJson = retornaJson('evapo', dado, termoJson, radiacaoJson)
+                        evapoJson["id"] = dado[9]
+                        converter_para_string(evapoJson)
+                        lista_objetos.append(evapoJson)
+                    elif query == 'radiacao': #http://127.0.0.1:8000/evapotranspiracaoservice?query=radiacao&sensor=01
+                        termoJson = retornaJson('termodinamica', dado, None, None)
+                        termoJson["id"] = dado[9]
+                        radiacaoJson = retornaJson('radiacao', dado, termoJson, None)
+                        radiacaoJson["id"] = dado[9]
+                        converter_para_string(radiacaoJson)
+                        lista_objetos.append(radiacaoJson)
+                    elif query == 'termodinamica': #http://127.0.0.1:8000/evapotranspiracaoservice?query=termodinamica&sensor=01
+                        termoJson = retornaJson('termodinamica', dado, None, None)
+                        termoJson["id"] = dado[9]
+                        converter_para_string(termoJson)
+                        lista_objetos.append(termoJson)
+                    elif query == 'evapotransp': #http://127.0.0.1:8000/evapotranspiracaoservice?query=todos&sensor=01
+                        termoJson = retornaJson('termodinamica', dado, None, None)
+                        termoJson["id"] = dado[9]
+                        radiacaoJson = retornaJson('radiacao', dado, termoJson, None)
+                        radiacaoJson["id"] = dado[9]
+                        evapoJson = retornaJson('evapo', dado, termoJson, radiacaoJson)
+                        evapoJson["id"] = dado[9]
+                        converter_para_string(termoJson)
+                        converter_para_string(radiacaoJson)
+                        converter_para_string(evapoJson)                       
+                        dadosjson = {}
+                        dadosjson["termodinamica"] = termoJson
+                        dadosjson["radiacao"] = radiacaoJson
+                        dadosjson["evapo"] = evapoJson
+                        lista_objetos.append(dadosjson)
+            return (Response(lista_objetos))
     else:
         return (Response("Não foi possível obter os dados."))
     
 
 def filtraJson(dados):
-    dadosCSVCol = []
-    proximapagina = ""
-    
-    if dados["next"] != None:
-        proximapagina = dados["next"]
-        
-    for resultado in dados['results']:
-        dado = []
-        dado.append(resultado["data_registro"])
-        dado.append(dia_do_ano(resultado["data_registro"]))
-        dado.append(float(resultado["temp_max"]))
-        dado.append(float(resultado["temp_min"]))
-        dado.append(float(17.5)) #ALTERAR QUANDO EXISTIR ATRIBUTO NO JSON DO REQUEST
-        dado.append(float(10.86)) #ALTERAR QUANDO EXISTIR ATRIBUTO NO JSON DO REQUEST
-        dado.append(float(resultado["umidade_max"]))
-        dado.append(float(resultado["umidade_min"]))
-        dado.append(float(resultado["mm_ciclo"]))
-        dado.append(resultado["id"])
-        dado.append(proximapagina)    
-        
-        dadosCSVCol.append(dado)
-    return dadosCSVCol
-
-def filtraJsonOLDOLD(dados):
     dadosCSVCol = []
     for i in range(len(dados)):
         dado = []
@@ -392,6 +379,8 @@ def retornaJson(object, dados, termo, rad):
         retorno = SaldoRadiacao(dados[1], -22.45, 54, dados[4], dados[2], dados[3], termo["ea"])
         retorno.append(dados[0])
     elif object == 'evapo':
+        #termoObj = json.loads(termo)
+        #radObj = json.loads(rad)   
         retorno = Evapo(rad['Ra'], rad['Rn'], termo['Tm'], 
         dados[2], dados[3], termo['es'], termo['ea'], 
         termo['Lamb'],termo['Gama'], termo['Ses'], dados[5])
@@ -404,8 +393,8 @@ def Evapo(Ra,Rn,Tm,Tx,Tn,es,ea,Lamb,Gama,Ses,U2):
 
     #Método de Hargreaves-Samani
     #ETo_HS = float(str(0.0023*(1/Lamb)*Ra*(Tm+17.8)*(Tx - Tn)**0.5)[1:-1])  
-    #ETo_HS = float(0.0023*(1/Lamb)*Ra*(Tm+17.8)*(Tx - Tn)**0.5)[1:-1]  
-    ETo_HS = 0.0023*(1/Lamb)*Ra*(Tm+17.8)*(Tx - Tn)**0.5      
+        
+    ETo_HS = float(0.0023*(1/Lamb)*Ra*(Tm+17.8)*(Tx - Tn)**0.5)      
 
     # Método de Penman-Monteith
     G = 0
@@ -540,11 +529,6 @@ def retornadadosservico(url, usuario, senha):
         else:
             print(f"Erro: {response.status_code} - {response.text}")
             return None
-    except requests.RequestException as req_exc:
-        # Captura exceções relacionadas a solicitações HTTP
-        print("Erro na solicitação HTTP:")
-        print(str(req_exc))
-        return None    
     except Exception as e:
         # Capture exceções e imprima detalhes do erro
         print(f"Ocorreu um erro: {str(e)}")
@@ -571,9 +555,9 @@ def retornadadosservicoOLDOLD(url, usuario, senha):
         return None
     
 def dia_do_ano(data):    
-    dia = int(data[8:10])
-    mes = int(data[5:7])
-    ano = int(data[:4])
+    dia = int(data[:2])
+    mes = int(data[3:4])
+    ano = int(data[5:])
     
     data_objeto = datetime(ano, mes, dia)
     dia_ano = data_objeto.timetuple().tm_yday
