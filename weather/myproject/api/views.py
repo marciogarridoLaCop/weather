@@ -40,14 +40,16 @@ def getEvapotranspiracaoService(request):
     senha = "M@ster10"
     print("endpoint_url " + endpoint_url)
     dados = retornadadosservico(endpoint_url, usuario, senha)
+    pagina = ""
     if dados:
         dadosarray = filtraJson(dados)
+        pagina = dadosarray[0][10]
         lista_objetos = []    
         for dado in dadosarray:   
             if query == 'evapo': #http://127.0.0.1:8000/evapotranspiracaoservice?query=evapo&estacao=
                 termoJson = retornaJson('termodinamica', dado, None, None)
                 termoJson["id"] = dado[9]
-                radiacaoJson = retornaJson('radiacao', dado, termoJson, None)
+                radiacaoJson = retornaJson('saldoradiacao', dado, termoJson, None)
                 radiacaoJson["id"] = dado[9]
                 #print("termoJson")
                 #print(termoJson)
@@ -55,37 +57,67 @@ def getEvapotranspiracaoService(request):
                 #print(radiacaoJson)
                 evapoJson = retornaJson('evapo', dado, termoJson, radiacaoJson)
                 evapoJson["id"] = dado[9]
+                evapoJson["PCP"] = dado[8]
                 evapoJson["next"] = dado[10]
+                evapoJson["dia-mes"] = dado[11]
                 converter_para_string(evapoJson)
                 lista_objetos.append(evapoJson)
-            elif query == 'radiacao': #http://127.0.0.1:8000/evapotranspiracaoservice?query=radiacao&estacao=1
+            elif query == 'saldoradiacao': #http://127.0.0.1:8000/evapotranspiracaoservice?query=radiacao&estacao=1
                 termoJson = retornaJson('termodinamica', dado, None, None)
                 termoJson["id"] = dado[9]
-                radiacaoJson = retornaJson('radiacao', dado, termoJson, None)
+                termoJson["tx"] = dado[2]
+                termoJson["tn"] = dado[3]
+                radiacaoJson = retornaJson('saldoradiacao', dado, termoJson, None)
                 radiacaoJson["id"] = dado[9]
+                radiacaoJson["Rs"] = dado[4]
+                radiacaoJson["next"] = dado[10]
                 converter_para_string(radiacaoJson)
                 lista_objetos.append(radiacaoJson)
             elif query == 'termodinamica': #http://127.0.0.1:8000/evapotranspiracaoservice?query=termodinamica&estacao=1
                 termoJson = retornaJson('termodinamica', dado, None, None)
                 termoJson["id"] = dado[9]
+                termoJson["Tx"] = dado[2]
+                termoJson["Tn"] = dado[3]
+                termoJson["URx"] = dado[6]
+                termoJson["URn"] = dado[7]
+                termoJson["next"] = dado[10]
+                termoJson["dia-mes"] = dado[11]
                 converter_para_string(termoJson)
                 lista_objetos.append(termoJson)
             elif query == 'evapotransp': #http://127.0.0.1:8000/evapotranspiracaoservice?query=todos&estacao=1
                 termoJson = retornaJson('termodinamica', dado, None, None)
                 termoJson["id"] = dado[9]
-                radiacaoJson = retornaJson('radiacao', dado, termoJson, None)
+                termoJson["Tx"] = dado[2]
+                termoJson["Tn"] = dado[3]
+                termoJson["URx"] = dado[6]
+                termoJson["URn"] = dado[7]
+                radiacaoJson = retornaJson('saldoradiacao', dado, termoJson, None)
                 radiacaoJson["id"] = dado[9]
+                radiacaoJson["Rs"] = dado[4]
                 evapoJson = retornaJson('evapo', dado, termoJson, radiacaoJson)
                 evapoJson["id"] = dado[9]
+                evapoJson["PCP"] = dado[8]
                 converter_para_string(termoJson)
                 converter_para_string(radiacaoJson)
                 converter_para_string(evapoJson)                       
                 dadosjson = {}
                 dadosjson["termodinamica"] = termoJson
-                dadosjson["radiacao"] = radiacaoJson
+                dadosjson["saldoradiacao"] = radiacaoJson
                 dadosjson["evapo"] = evapoJson
+                dadosjson["next"] = dado[10]
+                dadosjson["dia-mes"] = dado[11]
+                dadosjson["data"] = dado[0]
+                dadosjson["URx"] = dado[6]
+                dadosjson["URn"] = dado[7]
+                dadosjson["Tx"] = dado[2]
+                dadosjson["Tn"] = dado[3]
+                dadosjson["Rs"] = dado[4]
+                dadosjson["PCP"] = dado[8]
                 lista_objetos.append(dadosjson)
-        return (Response(lista_objetos))
+        respostajson =  {}
+        respostajson["results"] = lista_objetos   
+        respostajson["next"] = pagina
+        return (Response(respostajson))
     else:
         return (Response("Não foi possível obter os dados."))
     
@@ -101,15 +133,20 @@ def filtraJson(dados):
         dado = []
         dado.append(resultado["data_registro"])
         dado.append(dia_do_ano(resultado["data_registro"]))
-        dado.append(float(resultado["temp_max"]))
-        dado.append(float(resultado["temp_min"]))
-        dado.append(float(17.5)) #ALTERAR QUANDO EXISTIR ATRIBUTO NO JSON DO REQUEST
+        dado.append(float(resultado["temp_max"] if resultado["temp_max"] !="nan" else "0.00"))
+        dado.append(float(resultado["temp_min"] if resultado["temp_min"] !="nan" else "0.00"))
+        if "rs" in resultado:
+            dado.append(float(resultado["rs"])) #ALTERAR QUANDO EXISTIR ATRIBUTO NO JSON DO REQUEST
+        else:
+            dado.append(float(17.5)) #ALTERAR QUANDO EXISTIR ATRIBUTO NO JSON DO REQUEST    
+        
         dado.append(float(10.86)) #ALTERAR QUANDO EXISTIR ATRIBUTO NO JSON DO REQUEST
-        dado.append(float(resultado["umidade_max"]))
-        dado.append(float(resultado["umidade_min"]))
+        dado.append(float(resultado["umidade_max"] if resultado["umidade_max"] !="nan" else "0.00"))
+        dado.append(float(resultado["umidade_min"] if resultado["umidade_min"] !="nan" else "0.00"))
         dado.append(float(resultado["mm_ciclo"]))
         dado.append(resultado["id"])
         dado.append(proximapagina)    
+        dado.append(dia_mes(resultado["data_registro"]))
         
         dadosCSVCol.append(dado)
     return dadosCSVCol
@@ -120,12 +157,12 @@ def filtraJsonOLDOLD(dados):
         dado = []
         dado.append(dados[i]["data"])
         dado.append(dia_do_ano(dados[i]["data"]))
-        dado.append(float(dados[i]["temp_max"]))
-        dado.append(float(dados[i]["temp_min"]))
+        dado.append(float(dados[i]["temp_max"] if dados[i]["temp_max"] !="nan" else 0))
+        dado.append(float(dados[i]["temp_min"] if dados[i]["temp_min"] !="nan" else 0))
         dado.append(float(17.5)) #ALTERAR QUANDO EXISTIR ATRIBUTO NO JSON DO REQUEST
         dado.append(float(10.86)) #ALTERAR QUANDO EXISTIR ATRIBUTO NO JSON DO REQUEST
-        dado.append(float(dados[i]["umidade_max"]))
-        dado.append(float(dados[i]["umidade_min"]))
+        dado.append(float(dados[i]["umidade_max"] if dados[i]["umidade_max"] !="nan" else 0))
+        dado.append(float(dados[i]["umidade_min"] if dados[i]["umidade_min"] !="nan" else 0))
         dado.append(float(dados[i]["mm_ciclo"]))
         dado.append(dados[i]["id"])
         dadosCSVCol.append(dado)
@@ -172,11 +209,11 @@ def getEvapotranpiracaoDB(request):
     lista_objetos = []    
     for dado in dadosCSVCol:
         termoJson = retornaJsondb('termodinamica', dado, None, None)
-        radiacaoJson = retornaJsondb('radiacao', dado, termoJson, None)
+        radiacaoJson = retornaJsondb('saldoradiacao', dado, termoJson, None)
         evapoJson = retornaJsondb('evapo', dado, termoJson, radiacaoJson)
         if query == 'evapo': #http://127.0.0.1:8000/dadosevapotranspiracaodb?query=evapo
             lista_objetos.append(termoJson)
-        elif query == 'radiacao': #http://127.0.0.1:8000/dadosevapotranspiracaodb?query=radiacao
+        elif query == 'saldoradiacao': #http://127.0.0.1:8000/dadosevapotranspiracaodb?query=radiacao
             lista_objetos.append(radiacaoJson)
         elif query == 'termodinamica': #http://127.0.0.1:8000/dadosevapotranspiracaodb?query=termodinamica
             lista_objetos.append(evapoJson)
@@ -186,7 +223,7 @@ def getEvapotranpiracaoDB(request):
             lista_objetos.append(radiacaoJson)
             lista_objetos.append(evapoJson)  
             dadosjson["termodinamica"] = termoJson
-            dadosjson["radiacao"] = radiacaoJson
+            dadosjson["saldoradiacao"] = radiacaoJson
             dadosjson["evapo"] = evapoJson
             lista_objetos.append(dadosjson)
           
@@ -228,12 +265,12 @@ def getEvapotranpiracao(request):
     lista_objetos = []    
     for dado in dadosCSVCol:
         termoJson = retornaJson('termodinamica', dado, None, None)
-        radiacaoJson = retornaJson('radiacao', dado, termoJson, None)
+        radiacaoJson = retornaJson('saldoradiacao', dado, termoJson, None)
         evapoJson = retornaJson('evapo', dado, termoJson, radiacaoJson)
         if query == 'evapo': #http://127.0.0.1:8000/dadosevapotranspiracao?query=evapo
             lista_objetos.append(termoJson)
             print(termoJson)
-        elif query == 'radiacao': #http://127.0.0.1:8000/dadosevapotranspiracao?query=radiacao
+        elif query == 'saldoradiacao': #http://127.0.0.1:8000/dadosevapotranspiracao?query=radiacao
             lista_objetos.append(radiacaoJson)
             print(radiacaoJson)
         elif query == 'termodinamica': #http://127.0.0.1:8000/dadosevapotranspiracao?query=termodinamica
@@ -278,8 +315,8 @@ def getEvapotranpiracaoCSV(request): #http://127.0.0.1:8000/evapotranspiracao
         dadosjson = {}
         termoJson = retornaJson('termodinamica', dado, None, None)
         dadosjson["termodinamica"] = termoJson
-        radiacaoJson = retornaJson('radiacao', dado, termoJson, None)
-        dadosjson["radiacao"] = radiacaoJson
+        radiacaoJson = retornaJson('saldoradiacao', dado, termoJson, None)
+        dadosjson["saldoradiacao"] = radiacaoJson
         evapoJson = retornaJson('evapo', dado, termoJson, radiacaoJson)
         dadosjson["evapo"] = evapoJson
         print(dadosjson)
@@ -305,7 +342,7 @@ def convertojsondb(object, data):
         objecttojson['ETo_HS'] = data[0]
         objecttojson['ETo_PM'] = data[1]
         objecttojson['dia-mes'] = str(data[2].month) + '/' + str(data[2].day) + '/' + str(data[2].year)
-    elif object == 'radiacao':
+    elif object == 'saldoradiacao':
         objecttojson['Rn'] = data[0]
         objecttojson['Rns'] = data[1]
         objecttojson['Rnl'] = data[2]
@@ -337,7 +374,7 @@ def convertojson(object, data):
         objecttojson['ETo_HS'] = data[0]
         objecttojson['ETo_PM'] = data[1]
         objecttojson['data'] = data[2]
-    elif object == 'radiacao':
+    elif object == 'saldoradiacao':
         objecttojson['Rn'] = data[0]
         objecttojson['Rns'] = data[1]
         objecttojson['Rnl'] = data[2]
@@ -368,7 +405,7 @@ def retornaJsondb(object, dados, termo, rad):
     if object == 'termodinamica':
         retorno = Termodinamica(dados[2], dados[3], dados[6], dados[7], 54)
         retorno.append(dados[0])
-    elif object == 'radiacao':
+    elif object == 'saldoradiacao':
         #termoObj = json.loads(termo)
         retorno = SaldoRadiacao(dados[1], -22.45, 54, dados[4], dados[2], dados[3], termo["ea"])
         retorno.append(dados[0])
@@ -388,7 +425,7 @@ def retornaJson(object, dados, termo, rad):
     if object == 'termodinamica':
         retorno = Termodinamica(dados[2], dados[3], dados[6], dados[7], 54)
         retorno.append(dados[0])
-    elif object == 'radiacao':
+    elif object == 'saldoradiacao':
         retorno = SaldoRadiacao(dados[1], -22.45, 54, dados[4], dados[2], dados[3], termo["ea"])
         retorno.append(dados[0])
     elif object == 'evapo':
@@ -447,6 +484,8 @@ def SaldoRadiacao(Doy,fi,Z,Rs,Tx,Tn,ea):
     return [Rn,Rns,Rnl,Ra]
 
 def Termodinamica(Tx,Tn,URx,URn,Z): # Temperatura
+    print(Tx) 
+    print(Tn) 
     
     Patm = 101.3*((293-0.0065*Z)/293) ** 5.26 # Pressão atmosférica [kPa]
 
@@ -470,13 +509,19 @@ def Termodinamica(Tx,Tn,URx,URn,Z): # Temperatura
 
     Rmix = 0.622*ea/(Patm-ea)              # Razão de mistura [g/g]
 
-    Tpo = (237.3*math.log10(ea/0.6108))/(7.5-math.log10(ea/0.6108))  # Temperatura do ponto de orvalho [oC]
+    if ea != 0:
+       Tpo = (237.3*math.log10(ea/0.6108))/(7.5-math.log10(ea/0.6108))  # Temperatura do ponto de orvalho [oC]    
+    else:
+       Tpo = 0    
+    
 
     Lamb = 2.501-(0.002361)*Tm                             # Calor latente de evaporação [MJ/kg]
 
     Gama = (1.013E-3*Patm)/(0.622*Lamb)   # Coeficiente pscrométrico [oC/MJ]
-    
-    Dens = 3.484*(Patm/Tm)                # Densidade do ar [g/m³]
+    if Tm !=0:
+        Dens = 3.484*(Patm/Tm)                # Densidade do ar [g/m³]
+    else:
+        Dens = 0    
 
     return [Patm,Tm,URm,es,ea,DPV,UA,US,Qesp,Rmix,Tpo,Dens,Lamb,Gama,Ses]
 
@@ -520,6 +565,13 @@ def initdatabase():
         cursor.execute("INSERT INTO DADOSEVAPO VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", dados)
     
     return cursor
+
+def retornaDados(urljson):
+    dados_json = ""
+    response = requests.get(urljson)
+    if response.status_code == 200:
+        dados_json = response.json()
+    return dados_json
 
 def retornadadosservico(url, usuario, senha):
     try:
@@ -578,6 +630,15 @@ def dia_do_ano(data):
     data_objeto = datetime(ano, mes, dia)
     dia_ano = data_objeto.timetuple().tm_yday
     return dia_ano
+
+def dia_mes(data):    
+    dia = data[8:10]
+    mes = data[5:7]
+    hora = data[11:13]
+    minuto = data[14:16]
+    segundo = data[17:19]
+    diames = dia + "/" + mes + " " + hora + ":" + minuto + ":" + segundo
+    return diames
 
 def converter_para_string(dicionario):
     for chave, valor in dicionario.items():
